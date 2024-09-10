@@ -1,0 +1,39 @@
+using System;
+using System.Diagnostics;
+using System.Windows.Forms;
+using System.Windows.Forms.DataVisualization.Charting;
+
+namespace pruebac
+{
+    public partial class Form1 : Form
+    {
+        private string selectedProcessName;
+        private PerformanceCounter cpuCounter;
+        private PerformanceCounter ramCounter;
+        private PerformanceCounter diskCounter;
+
+        public Form1()
+        {
+            InitializeComponent();
+            InitializeDataGridView();
+            InitializePerformanceCounters();
+            InitializeCharts(); // Inicializar gráficos
+            LoadProcesses();
+            timer1.Start(); // Inicia el temporizador
+        }
+
+        private void InitializeDataGridView()
+        {
+            dataGridViewProcesses.ColumnCount = 5;
+            dataGridViewProcesses.Columns[0].Name = "ID";
+            dataGridViewProcesses.Columns[1].Name = "Nombre";
+            dataGridViewProcesses.Columns[2].Name = "Prioridad";
+            dataGridViewProcesses.Columns[3].Name = "Memoria Física (MB)";
+            dataGridViewProcesses.Columns[4].Name = "Memoria Virtual (MB)";
+
+            dataGridViewProcesses.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dataGridViewProcesses.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dataGridViewProcesses.MultiSelect = false;
+        }
+
+       
