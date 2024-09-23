@@ -1,0 +1,171 @@
+import re
+import os
+from collections import defaultdict
+
+class AFNtoAFDConverter:
+    def __init__(self):
+        self.afn = {}
+        self.afd = {}
+        self.states = set()
+        self.initial_state = None           
+        self.final_states = set()
+        self.alphabet = set()
+
+    def load_afn(self, file_content):
+        # Parsing the AFN from the file content
+        lines = file_content.splitlines()
+        self.states = set(re.findall(r'\d+', lines[0]))
+        self.initial_state = re.findall(r'\d+', lines[1])[0]
+        self.final_states = set(re.findall(r'\d+', lines[2]))
+        self.alphabet = set(re.findall(r'\w+', lines[3]))
+
+        for line in lines[4:]:
+            match = re.match(r'F \((\d+), (.+)\) = \{(.+)\}', line)
+            if match:
+                state, symbol, transitions = match.groups()
+                self.afn[(state, symbol)] = set(transitions.split(', '))
+
+    def convert_to_afd(self):
+        # Conversion logic from AFN to AFD
+        dfa_states = [frozenset([self.initial_state])]
+        self.afd = {}
+        unmarked_states = dfa_states.copy()
+
+        while unmarked_states:
+            dfa_state = unmarked_states.pop()
+            for symbol in self.alphabet:
+                new_state = frozenset(sum([list(self.afn.get((s, symbol), [])) for s in dfa_state], []))
+                if new_state:
+                    self.afd[(dfa_state, symbol)] = new_state
+                    if new_state not in dfa_states:
+                        dfa_states.append(new_state)
+                        unmarked_states.append(new_state)
+
+    def validate_string(self, string):
+        # Inicializar el estado actual
+        current_state = frozenset([self.initial_state])
+        print(f"Estado inicial: {current_state}")
+        
+        for symbol in string:
+            print(f"Símbolo: {symbol}")
+            next_state = self.afd.get((current_state, symbol), frozenset())
+            print(f"Estado siguiente: {next_state}")
+            
+            if not next_state:
+                print("Transición no encontrada. Cadena no válida.")
+                return False
+            
+            current_state = next_state
+        
+        # Verificar si el estado final es uno de los estados finales del AFD
+        is_valid = bool(current_state & self.final_states)
+        print(f"Estado final alcanzado: {current_state}")
+        print(f"Estados finales del AFD: {self.final_states}")
+        return is_valid
+
+    def save_afd(self, filename='AFD.txt'):
+        # Save the AFD to a file in the specified format
+        with open(filename, 'w') as f:
+            f.write(f"S = {{{', '.join(map(str, self.states))}}}\n")
+            f.write(f"S0 = {{{self.initial_state}}}\n")
+            f.write(f"T = {{{', '.join(map(str, self.final_states))}}}\n")
+            f.write(f"A = {{{', '.join(self.alphabet)}}}\n")
+            for (state, symbol), transitions in self.afd.items():
+                f.write(f"F ({', '.join(state)}, {symbol}) = {{{', '.join(map(str, transitions))}}}\n")
+
+    def load_afn_from_file(self, filename):
+        with open(filename, 'r') as file:
+            self.load_afn(file.read())
+
+def mostrar_gramatica(afd_filename):
+    if not os.path.exists(afd_filename):
+        print("Se necesita un AFD para determinar la gramática.")
+        return
+
+    # Leer el archivo AFD.txt
+    with open(afd_filename, 'r') as f:
+        lines = f.readlines()
+    
+    # Extraer información del archivo
+    states = set(re.findall(r'\d+', lines[0]))
+    initial_state = re.findall(r'\d+', lines[1])[0]
+    final_states = set(re.findall(r'\d+', lines[2]))
+    alphabet = set(re.findall(r'\w+', lines[3]))
+
+    transitions = {}
+    for line in lines[4:]:
+        match = re.match(r'F \((\d+), (.+)\) = \{(.+)\}', line)
+        if match:
+            state, symbol, transition_states = match.groups()
+            transitions[(state, symbol)] = set(transition_states.split(', '))
+
+    # Generar reglas de producción para la gramática
+    grammar_rules = []
+    for (state, symbol), next_states in transitions.items():
+        for next_state in next_states:
+            if next_state in final_states:
+                grammar_rules.append(f"S -> {symbol} {next_state}")
+            else:
+                grammar_rules.append(f"S -> {symbol} {next_state}")
+
+    # Mostrar la gramática
+    print("Gramática Generada:")
+    print(f"Símbolos no terminales: {{S}}")
+    print(f"Símbolos terminales: {{{', '.join(alphabet)}}}")
+    print(f"Símbolo inicial: S")
+    print(f"Estados finales: {{{', '.join(final_states)}}}")
+    print("Reglas de producción:")
+    for rule in grammar_rules:
+        print(rule)
+
+def main():
+    converter = AFNtoAFDConverter()
+    
+    while True:
+        print("\nMenú:")
+        print("1. INGRESO")
+        print("2. AFN")
+        print("3. CONVERSION AFD")
+        print("4. VALIDAR CADENAS")
+        print("5. MOSTRAR GRAMATICA")
+        print("0. SALIR")
+        option = input("Selecciona una opción: ")
+
+        if option == "1":
+            regex = input("Ingresa una expresión regular: ")
+            print("Expresión ingresada correctamente.")
+
+        elif option == "2":
+            filename = input("Ingresa el nombre del archivo con la definición del AFN: ")
+            converter.load_afn_from_file(filename)
+            print("AFN cargado correctamente.")
+
+        elif option == "3":
+            converter.convert_to_afd()
+            converter.save_afd()
+            print("Conversión a AFD completada. Archivo guardado como 'AFD.txt'.")
+
+        elif option == "4":
+            cadena = input("Ingresa la cadena a validar: ")
+            es_valida = converter.validate_string(cadena)
+            if es_valida:
+                print("La cadena ha sido reconocida correctamente.")
+            else:
+                print("La cadena no es válida en el AFD.")
+
+        elif option == "5":
+            mostrar_gramatica('AFD.txt')
+
+        elif option == "0":
+            print("Saliendo del programa...")
+            # Eliminar el archivo AFD.txt
+            if os.path.exists('AFD.txt'):
+                os.remove('AFD.txt')
+                print("Archivo 'AFD.txt' eliminado.")
+            break
+
+        else:
+            print("Opción no válida, por favor intenta de nuevo.")
+
+if __name__ == "__main__":
+    main()
