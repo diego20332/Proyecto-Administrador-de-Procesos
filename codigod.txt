@@ -1,0 +1,67 @@
+private void LoadProcesses()
+{
+    // Guardar el ID del proceso seleccionado antes de actualizar
+    int? selectedProcessId = null;
+    if (dataGridViewProcesses.SelectedRows.Count > 0)
+    {
+        selectedProcessId = (int)dataGridViewProcesses.SelectedRows[0].Cells[0].Value;
+    }
+
+    // Guardar el estado de la ordenación antes de la actualización
+    DataGridViewColumn sortedColumn = dataGridViewProcesses.SortedColumn;
+    ListSortDirection sortDirection = ListSortDirection.Ascending;
+    if (sortedColumn != null)
+    {
+        sortDirection = dataGridViewProcesses.SortOrder == SortOrder.Descending
+            ? ListSortDirection.Descending
+            : ListSortDirection.Ascending;
+    }
+
+    // Guardar el índice de la primera fila visible para mantener la posición del scroll
+    int firstDisplayedScrollingRowIndex = dataGridViewProcesses.FirstDisplayedScrollingRowIndex;
+
+    // Limpiar y volver a cargar los procesos
+    dataGridViewProcesses.Rows.Clear();
+    foreach (Process proc in Process.GetProcesses())
+    {
+        try
+        {
+            dataGridViewProcesses.Rows.Add(
+                proc.Id,
+                proc.ProcessName,
+                proc.BasePriority,
+                proc.WorkingSet64 / 1024 / 1024,
+                proc.VirtualMemorySize64 / 1024 / 1024
+            );
+        }
+        catch
+        {
+            // Manejo de errores por permisos o procesos protegidos
+        }
+    }
+
+    // Restaurar la selección del proceso
+    if (selectedProcessId.HasValue)
+    {
+        foreach (DataGridViewRow row in dataGridViewProcesses.Rows)
+        {
+            if ((int)row.Cells[0].Value == selectedProcessId.Value)
+            {
+                row.Selected = true;
+                break;
+            }
+        }
+    }
+
+    // Restaurar la ordenación
+    if (sortedColumn != null)
+    {
+        dataGridViewProcesses.Sort(sortedColumn, sortDirection);
+    }
+
+    // Restaurar la posición del scroll
+    if (firstDisplayedScrollingRowIndex >= 0 && firstDisplayedScrollingRowIndex < dataGridViewProcesses.Rows.Count)
+    {
+        dataGridViewProcesses.FirstDisplayedScrollingRowIndex = firstDisplayedScrollingRowIndex;
+    }
+}
