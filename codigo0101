@@ -1,0 +1,171 @@
+> Diego Guevara S:
+using System;
+using System.Diagnostics;
+using System.Windows.Forms;
+using System.Windows.Forms.DataVisualization.Charting;
+
+namespace pruebac
+{
+    public partial class Form1 : Form
+    {
+        private string selectedProcessName;
+        private PerformanceCounter cpuCounter;
+        private PerformanceCounter ramCounter;
+        private PerformanceCounter diskCounter;
+
+        public Form1()
+        {
+            InitializeComponent();
+            InitializeDataGridView();
+            InitializePerformanceCounters();
+            InitializeCharts(); // Inicializar gráficos
+            LoadProcesses();
+            timer1.Start(); // Inicia el temporizador
+        }
+
+        private void InitializeDataGridView()
+        {
+            dataGridViewProcesses.ColumnCount = 5;
+            dataGridViewProcesses.Columns[0].Name = "ID";
+            dataGridViewProcesses.Columns[1].Name = "Nombre";
+            dataGridViewProcesses.Columns[2].Name = "Prioridad";
+            dataGridViewProcesses.Columns[3].Name = "Memoria Física (MB)";
+            dataGridViewProcesses.Columns[4].Name = "Memoria Virtual (MB)";
+
+            dataGridViewProcesses.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dataGridViewProcesses.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dataGridViewProcesses.MultiSelect = false;
+        }
+
+        private void InitializePerformanceCounters()
+        {
+            cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
+            ramCounter = new PerformanceCounter("Memory", "Available MBytes");
+            diskCounter = new PerformanceCounter("PhysicalDisk", "% Disk Time", "_Total");
+        }
+
+        private void InitializeCharts()
+        {
+            // Configuración para chartCPU
+            chartCPU.Series.Clear();
+            Series cpuSeries = new Series("CPU")
+            {
+                ChartType = SeriesChartType.Line,
+                XValueType = ChartValueType.DateTime
+            };
+            chartCPU.Series.Add(cpuSeries);
+            chartCPU.ChartAreas.Add(new ChartArea());
+
+            // Configuración para chartRAM
+            chartRAM.Series.Clear();
+            Series ramSeries = new Series("RAM")
+            {
+                ChartType = SeriesChartType.Line,
+                XValueType = ChartValueType.DateTime
+            };
+            chartRAM.Series.Add(ramSeries);
+            chartRAM.ChartAreas.Add(new ChartArea());
+
+            // Configuración para chartDisk
+            chartDisk.Series.Clear();
+            Series diskSeries = new Series("Disco")
+            {
+                ChartType = SeriesChartType.Line,
+                XValueType = ChartValueType.DateTime
+            };
+            chartDisk.Series.Add(diskSeries);
+            chartDisk.ChartAreas.Add(new ChartArea());
+        }
+
+        private void LoadProcesses()
+        {
+            dataGridViewProcesses.Rows.Clear();
+            foreach (Process proc in Process.GetProcesses())
+            {
+                try
+                {
+                    dataGridViewProcesses.Rows.Add(
+                        proc.Id,
+                        proc.ProcessName,
+                        proc.BasePriority,
+                        proc.WorkingSet64 / 1024 / 1024, // Convertir a MB
+                        proc.VirtualMemorySize64 / 1024 / 1024 // Convertir a MB
+                    );
+                }
+                catch
+                {
+                    // Manejo de errores por permisos o procesos protegidos
+                }
+            }
+        }
+
+        private void btnUpdate_Click(object sender, EventArgs e)
+        {
+            LoadProcesses();
+        }
+
+        private void btnKillProcess_Click(object sender, EventArgs e)
+        {
+            if (dataGridViewProcesses.SelectedRows.Count > 0)
+
+> Diego Guevara S:
+{
+                int processId = (int)dataGridViewProcesses.SelectedRows[0].Cells[0].Value;
+                try
+                {
+                    Process proc = Process.GetProcessById(processId);
+                    proc.Kill();
+                    LoadProcesses();
+                    MessageBox.Show($"Proceso {processId} terminado.");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error al terminar el proceso: {ex.Message}");
+                }
+            }
+            else
+            {
+                MessageBox.Show("Por favor, seleccione un proceso para finalizar.");
+            }
+        }
+
+        private void dataGridViewProcesses_MouseClick(object sender, MouseEventArgs e)
+        {
+            if (dataGridViewProcesses.SelectedRows.Count > 0)
+            {
+                selectedProcessName = dataGridViewProcesses.SelectedRows[0].Cells[1].Value.ToString();
+            }
+        }
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            LoadProcesses();
+            UpdateCharts();
+        }
+
+        private void UpdateCharts()
+        {
+            // Actualiza la gráfica de CPU
+            chartCPU.Series["CPU"].Points.AddXY(DateTime.Now, cpuCounter.NextValue());
+
+            // Actualiza la gráfica de RAM
+            chartRAM.Series["RAM"].Points.AddXY(DateTime.Now, ramCounter.NextValue());
+
+            // Actualiza la gráfica de Disco
+            chartDisk.Series["Disco"].Points.AddXY(DateTime.Now, diskCounter.NextValue());
+
+            // Limitar la cantidad de puntos mostrados en la gráfica
+            LimitChartPoints(chartCPU);
+            LimitChartPoints(chartRAM);
+            LimitChartPoints(chartDisk);
+        }
+
+        private void LimitChartPoints(Chart chart)
+        {
+            if (chart.Series[0].Points.Count > 30) // Mantener un máximo de 30 puntos
+            {
+                chart.Series[0].Points.RemoveAt(0);
+            }
+        }
+    }
+}
